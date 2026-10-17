@@ -1,6 +1,8 @@
 #include "tbitfield.h"
 
 #include <gtest.h>
+#include <sstream>
+#include <climits>
 
 TEST(TBitField, can_create_bitfield_with_positive_length)
 {
@@ -308,4 +310,94 @@ TEST(TBitField, bitfields_with_different_bits_are_not_equal)
   bf2.SetBit(2);
 
   EXPECT_NE(bf1, bf2);
+}
+
+TEST(TBitField, clearing_bit_twice_keeps_it_zero)
+{
+  TBitField bf(10);
+  bf.SetBit(3);
+  bf.ClrBit(3);
+  bf.ClrBit(3);
+  EXPECT_EQ(0, bf.GetBit(3));
+}
+
+TEST(TBitField, can_combine_three_bitfields)
+{
+  TBitField a(4), b(40), c(70), expected(70);
+  a.SetBit(1);
+  b.SetBit(35);
+  c.SetBit(69);
+  expected.SetBit(1);
+  expected.SetBit(35);
+  expected.SetBit(69);
+  EXPECT_EQ(expected, a | b | c);
+}
+
+TEST(TBitField, copies_own_their_memory_and_support_self_assignment)
+{
+  TBitField original(40);
+  original.SetBit(35);
+  TBitField copy(original), assigned(1);
+  assigned = original;
+  original.ClrBit(35);
+  copy = copy;
+  EXPECT_EQ(1, copy.GetBit(35));
+  EXPECT_EQ(1, assigned.GetBit(35));
+  EXPECT_EQ(0, original.GetBit(35));
+}
+
+TEST(TBitField, index_equal_to_length_is_out_of_range)
+{
+  TBitField bf(10);
+  EXPECT_ANY_THROW(bf.SetBit(10));
+  EXPECT_ANY_THROW(bf.ClrBit(10));
+  EXPECT_ANY_THROW(bf.GetBit(10));
+}
+
+TEST(TBitField, can_handle_empty_bitfields)
+{
+  TBitField empty(0), other(3);
+  EXPECT_EQ(0, empty.GetLength());
+  EXPECT_EQ(empty, ~empty);
+  EXPECT_EQ(other, empty | other);
+  EXPECT_EQ(other, empty & other);
+  EXPECT_ANY_THROW(empty.SetBit(0));
+}
+
+TEST(TBitField, inversion_does_not_set_bits_outside_length)
+{
+  const int wordSize = sizeof(TELEM) * CHAR_BIT;
+  TBitField shortBf(wordSize), longBf(wordSize + 1);
+  TBitField inverted = ~shortBf;
+  EXPECT_EQ(1, inverted.GetBit(wordSize - 1));
+  TBitField combined = inverted | longBf;
+  EXPECT_EQ(0, combined.GetBit(wordSize));
+  EXPECT_EQ(shortBf, ~inverted);
+}
+
+TEST(TBitField, can_read_and_write_bits_in_index_order)
+{
+  TBitField bf(4);
+  std::istringstream input("0101");
+  input >> bf;
+  EXPECT_FALSE(input.fail());
+  EXPECT_EQ(0, bf.GetBit(0));
+  EXPECT_EQ(1, bf.GetBit(1));
+  std::ostringstream output;
+  output << bf;
+  EXPECT_EQ("0101", output.str());
+}
+
+TEST(TBitField, invalid_input_keeps_original_bits)
+{
+  TBitField bf(3), expected(3);
+  bf.SetBit(0);
+  expected.SetBit(0);
+  std::istringstream invalid("01x"), incomplete("01");
+  invalid >> bf;
+  EXPECT_TRUE(invalid.fail());
+  EXPECT_EQ(expected, bf);
+  incomplete >> bf;
+  EXPECT_TRUE(incomplete.fail());
+  EXPECT_EQ(expected, bf);
 }

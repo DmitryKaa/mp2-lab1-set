@@ -1,6 +1,7 @@
 #include "tset.h"
 
 #include <gtest.h>
+#include <sstream>
 
 TEST(TSet, can_get_max_power_set)
 {
@@ -294,4 +295,84 @@ TEST(TSet, check_negation_operator)
   expSet.InsElem(2);
 
   EXPECT_EQ(expSet, set1);
+}
+
+TEST(TSet, can_combine_three_sets)
+{
+  TSet a(4), b(40), c(70), expected(70);
+  a.InsElem(1);
+  b.InsElem(35);
+  c.InsElem(69);
+  expected.InsElem(1);
+  expected.InsElem(35);
+  expected.InsElem(69);
+  EXPECT_EQ(expected, a + b + c);
+}
+
+TEST(TSet, adding_and_removing_elements_keeps_original_set)
+{
+  TSet original(5), expected(5);
+  original.InsElem(1);
+  expected.InsElem(3);
+  EXPECT_EQ(expected, original + 3 - 1);
+  EXPECT_EQ(1, original.IsMember(1));
+  EXPECT_EQ(0, original.IsMember(3));
+}
+
+TEST(TSet, copies_and_conversions_own_their_memory)
+{
+  TBitField bf(40);
+  bf.SetBit(35);
+  TSet original(bf);
+  TSet copy(original);
+  TBitField converted = original;
+  original.DelElem(35);
+  bf.ClrBit(35);
+  copy = copy;
+  EXPECT_EQ(40, copy.GetMaxPower());
+  EXPECT_EQ(1, copy.IsMember(35));
+  EXPECT_EQ(1, converted.GetBit(35));
+}
+
+TEST(TSet, rejects_negative_size_and_out_of_range_elements)
+{
+  EXPECT_ANY_THROW(TSet(-1));
+  TSet set(3);
+  EXPECT_ANY_THROW(set.InsElem(-1));
+  EXPECT_ANY_THROW(set.DelElem(3));
+  EXPECT_ANY_THROW(set.IsMember(3));
+  EXPECT_ANY_THROW(set - 3);
+}
+
+TEST(TSet, can_read_and_write_set_in_braces)
+{
+  TSet set(5), expected(5);
+  set.InsElem(4);
+  expected.InsElem(0);
+  expected.InsElem(3);
+  std::istringstream input("{0 3 3}");
+  input >> set;
+  EXPECT_FALSE(input.fail());
+  EXPECT_EQ(expected, set);
+  std::ostringstream output;
+  output << set;
+  EXPECT_EQ("{0 3}", output.str());
+  std::istringstream empty("{}");
+  empty >> set;
+  EXPECT_EQ(TSet(5), set);
+}
+
+TEST(TSet, invalid_input_keeps_original_set)
+{
+  const char *inputs[] = {"0 1", "{0 5}", "{0 -1}", "{0", "{x}"};
+  for (int i = 0; i < 5; i++)
+  {
+    TSet set(5), expected(5);
+    set.InsElem(4);
+    expected.InsElem(4);
+    std::istringstream input(inputs[i]);
+    input >> set;
+    EXPECT_TRUE(input.fail());
+    EXPECT_EQ(expected, set);
+  }
 }
